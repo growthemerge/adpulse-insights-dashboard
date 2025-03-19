@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -90,6 +89,7 @@ const DataUpload = () => {
     fetchUploadHistory();
   }, []);
 
+  
   const fetchUploadHistory = async () => {
     try {
       const uploadsQuery = query(collection(db, 'fileUploads'), orderBy('dateUploaded', 'desc'));
@@ -345,24 +345,6 @@ const DataUpload = () => {
                       'Validate File'
                     )}
                   </Button>
-                  
-                  <Button 
-                    onClick={handleUpload}
-                    disabled={validationStatus !== 'success' || isUploading}
-                    className="bg-brand-blue"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload
-                      </>
-                    )}
-                  </Button>
                 </div>
 
                 {validationStatus === 'success' && (
@@ -423,6 +405,24 @@ const DataUpload = () => {
                         </Label>
                       </div>
                     </div>
+                    
+                    <Button 
+                      onClick={handleUpload}
+                      disabled={isUploading}
+                      className="bg-brand-blue mt-2"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
               </>
