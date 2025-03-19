@@ -20,7 +20,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "Roboto", "system-ui", "sans-serif"],
+        sans: ["Poppins", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "SF Mono", "monospace"],
       },
       colors: {

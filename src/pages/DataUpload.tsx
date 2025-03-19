@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -89,7 +90,6 @@ const DataUpload = () => {
     fetchUploadHistory();
   }, []);
 
-  
   const fetchUploadHistory = async () => {
     try {
       const uploadsQuery = query(collection(db, 'fileUploads'), orderBy('dateUploaded', 'desc'));
@@ -129,12 +129,13 @@ const DataUpload = () => {
     setIsValidating(true);
     setValidationStatus('validating');
 
-    // Simulate validation process
+    // In a real app, we would validate the file contents here
+    // For demo purposes, we'll simulate validation
     setTimeout(() => {
       setIsValidating(false);
       
-      // Simulate validation success (in real app, this would be actual validation)
-      const isValid = true; // This would be determined by actual validation
+      // Simulate validation success
+      const isValid = true;
       
       if (isValid) {
         setValidationStatus('success');
@@ -146,6 +147,21 @@ const DataUpload = () => {
         toast.error('File validation failed');
       }
     }, 1500);
+  };
+
+  const generateMockData = () => {
+    // Generate 12 months of data for dashboard visualization
+    const today = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const date = new Date();
+      date.setMonth(today.getMonth() - 11 + i);
+      return {
+        date: `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`,
+        spend: Math.floor(Math.random() * 2000) + 1000,
+        revenue: Math.floor(Math.random() * 4000) + 2000,
+        roas: (Math.random() * 3 + 1).toFixed(1)
+      };
+    });
   };
 
   const handleUpload = async () => {
@@ -175,19 +191,8 @@ const DataUpload = () => {
       
       await addDoc(collection(db, 'fileUploads'), uploadData);
       
-      // 3. Process CSV data (in a real app, this would parse the CSV)
-      // Simulate processing the uploaded data for dashboard
-      const today = new Date();
-      const mockData = Array.from({ length: 12 }, (_, i) => {
-        const date = new Date();
-        date.setMonth(today.getMonth() - 11 + i);
-        return {
-          date: `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`,
-          spend: Math.floor(Math.random() * 2000) + 1000,
-          revenue: Math.floor(Math.random() * 4000) + 2000,
-          roas: (Math.random() * 3 + 1).toFixed(1)
-        };
-      });
+      // 3. Generate and store mock data for dashboard visualization
+      const mockData = generateMockData();
       
       // Store in Firestore for dashboard use
       await addDoc(collection(db, 'dashboardData'), {

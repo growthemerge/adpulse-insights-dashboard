@@ -2,8 +2,6 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { 
-  ArrowDownRight, 
-  ArrowUpRight, 
   BarChart4, 
   CreditCard, 
   DollarSign, 
@@ -19,6 +17,7 @@ import { DateRange } from 'react-day-picker';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardData {
   date: string;
@@ -35,6 +34,7 @@ const Dashboard = () => {
   
   const [performanceData, setPerformanceData] = useState<DashboardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -55,6 +55,9 @@ const Dashboard = () => {
         const dashboardDoc = querySnapshot.docs[0].data();
         const chartData = dashboardDoc.data as DashboardData[];
         setPerformanceData(chartData);
+        setHasData(true);
+      } else {
+        setHasData(false);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -64,56 +67,90 @@ const Dashboard = () => {
     }
   };
 
-  const metrics = [
-    {
-      title: "Total Spend",
-      value: "₹12,345",
-      change: "+12.3%",
-      isPositive: false,
-      icon: CreditCard,
-      color: "bg-brand-orange/10 text-brand-orange",
-    },
-    {
-      title: "Total Revenue",
-      value: "₹98,765",
-      change: "+23.5%",
-      isPositive: true,
-      icon: DollarSign,
-      color: "bg-brand-green/10 text-brand-green",
-    },
-    {
-      title: "Orders",
-      value: "423",
-      change: "+18.2%",
-      isPositive: true,
-      icon: ShoppingCart,
-      color: "bg-brand-teal/10 text-brand-teal",
-    },
-    {
-      title: "Website Visitors",
-      value: "12,567",
-      change: "+9.8%",
-      isPositive: true,
-      icon: UsersIcon,
-      color: "bg-brand-skyBlue/10 text-brand-skyBlue",
-    },
-    {
-      title: "ROAS",
-      value: "8.0x",
-      change: "+11.2%",
-      isPositive: true,
-      icon: BarChart4,
-      color: "bg-brand-gold/10 text-brand-gold",
-    },
-    {
-      title: "Avg. CPC",
-      value: "₹3.45",
-      change: "-5.2%",
-      isPositive: true,
-      icon: CreditCard,
-      color: "bg-brand-cyan/10 text-brand-cyan",
-    },
-  ];
+  // Calculate summary metrics from data
+  const calculateMetrics = () => {
+    if (!performanceData.length) return {
+      totalSpend: 0,
+      totalRevenue: 0,
+      averageRoas: 0,
+      orders: 0,
+      visitors: 0,
+      avgCpc: 0
+    };
+    
+    const totalSpend = performanceData.reduce((sum, item) => sum + item.spend, 0);
+    const totalRevenue = performanceData.reduce((sum, item) => sum + item.revenue, 0);
+    
+    const averageRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+    
+    // Estimate other metrics based on real data
+    const orders = Math.floor(totalRevenue / 250); // Average order value of ₹250
+    const visitors = Math.floor(totalSpend * 5); // Estimate 5 visitors per rupee spent
+    const avgCpc = totalSpend > 0 && visitors > 0 ? totalSpend / (visitors * 0.2) : 0; // Assume 20% click rate
+    
+    return {
+      totalSpend,
+      totalRevenue,
+      averageRoas,
+      orders,
+      visitors,
+      avgCpc
+    };
+  };
+
+  const metrics = hasData ? (() => {
+    const calculated = calculateMetrics();
+    return [
+      {
+        title: "Total Spend",
+        value: `₹${calculated.totalSpend.toLocaleString()}`,
+        change: "+12.3%",
+        isPositive: false,
+        icon: CreditCard,
+        color: "bg-brand-orange/10 text-brand-orange",
+      },
+      {
+        title: "Total Revenue",
+        value: `₹${calculated.totalRevenue.toLocaleString()}`,
+        change: "+23.5%",
+        isPositive: true,
+        icon: DollarSign,
+        color: "bg-brand-green/10 text-brand-green",
+      },
+      {
+        title: "Orders",
+        value: calculated.orders.toLocaleString(),
+        change: "+18.2%",
+        isPositive: true,
+        icon: ShoppingCart,
+        color: "bg-brand-teal/10 text-brand-teal",
+      },
+      {
+        title: "Website Visitors",
+        value: calculated.visitors.toLocaleString(),
+        change: "+9.8%",
+        isPositive: true,
+        icon: UsersIcon,
+        color: "bg-brand-skyBlue/10 text-brand-skyBlue",
+      },
+      {
+        title: "ROAS",
+        value: `${calculated.averageRoas.toFixed(1)}x`,
+        change: "+11.2%",
+        isPositive: true,
+        icon: BarChart4,
+        color: "bg-brand-gold/10 text-brand-gold",
+      },
+      {
+        title: "Avg. CPC",
+        value: `₹${calculated.avgCpc.toFixed(2)}`,
+        change: "-5.2%",
+        isPositive: true,
+        icon: CreditCard,
+        color: "bg-brand-cyan/10 text-brand-cyan",
+      },
+    ];
+  })() : [];
 
   return (
     <div className="w-full space-y-6">
@@ -125,19 +162,37 @@ const Dashboard = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {metrics.map((metric, index) => (
-          <MetricCard
-            key={index}
-            title={metric.title}
-            value={metric.value}
-            change={metric.change}
-            isPositive={metric.isPositive}
-            icon={metric.icon}
-            colorClass={metric.color}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="p-6">
+              <Skeleton className="h-4 w-24 mb-2" />
+              <Skeleton className="h-8 w-20 mb-1" />
+              <Skeleton className="h-4 w-16" />
+            </Card>
+          ))}
+        </div>
+      ) : hasData ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {metrics.map((metric, index) => (
+            <MetricCard
+              key={index}
+              title={metric.title}
+              value={metric.value}
+              change={metric.change}
+              isPositive={metric.isPositive}
+              icon={metric.icon}
+              colorClass={metric.color}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="p-6 text-center">
+          <p className="text-muted-foreground">
+            No data available. Please upload a CSV file in the Data Upload section.
+          </p>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="chart-container">

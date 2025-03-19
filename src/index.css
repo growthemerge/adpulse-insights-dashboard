@@ -1,4 +1,6 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -58,7 +60,7 @@
   
   body {
     @apply bg-brand-darkBlue text-foreground antialiased selection:bg-brand-green/10 selection:text-brand-green;
-    font-family: 'Inter', 'Roboto', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
   }
   
   code, pre, kbd {
