@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   BarChart3,
-  FileUpload,
+  Upload,
   Home,
   LogOut,
   Menu,
@@ -28,7 +28,7 @@ const DashboardLayout = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Data Upload', href: '/dashboard/upload', icon: FileUpload },
+    { name: 'Data Upload', href: '/dashboard/upload', icon: Upload },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Team', href: '/dashboard/team', icon: Users },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },

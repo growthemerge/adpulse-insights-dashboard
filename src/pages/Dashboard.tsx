@@ -15,9 +15,10 @@ import { MetricCard } from '@/components/MetricCard';
 import { PerformanceChart } from '@/components/charts/PerformanceChart';
 import { RoasChart } from '@/components/charts/RoasChart';
 import { CampaignPerformanceChart } from '@/components/charts/CampaignPerformanceChart';
+import { DateRange } from 'react-day-picker';
 
 const Dashboard = () => {
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
   });
@@ -79,7 +80,7 @@ const Dashboard = () => {
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <DateRangePicker 
           date={dateRange} 
-          onDateChange={setDateRange} 
+          onDateChange={(newDateRange: DateRange) => setDateRange(newDateRange)} 
         />
       </div>
 
