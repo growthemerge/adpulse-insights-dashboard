@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { 
   ArrowDownRight, 
@@ -16,12 +16,53 @@ import { PerformanceChart } from '@/components/charts/PerformanceChart';
 import { RoasChart } from '@/components/charts/RoasChart';
 import { CampaignPerformanceChart } from '@/components/charts/CampaignPerformanceChart';
 import { DateRange } from 'react-day-picker';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { toast } from 'sonner';
+
+interface DashboardData {
+  date: string;
+  spend: number;
+  revenue: number;
+  roas: number | string;
+}
 
 const Dashboard = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
   });
+  
+  const [performanceData, setPerformanceData] = useState<DashboardData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      const dashboardQuery = query(
+        collection(db, 'dashboardData'),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(dashboardQuery);
+      
+      if (!querySnapshot.empty) {
+        const dashboardDoc = querySnapshot.docs[0].data();
+        const chartData = dashboardDoc.data as DashboardData[];
+        setPerformanceData(chartData);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const metrics = [
     {
@@ -101,12 +142,12 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="chart-container">
           <h2 className="text-lg font-semibold mb-4">Spend vs. Revenue</h2>
-          <PerformanceChart />
+          <PerformanceChart data={performanceData} isLoading={isLoading} />
         </Card>
         
         <Card className="chart-container">
           <h2 className="text-lg font-semibold mb-4">ROAS Trend</h2>
-          <RoasChart />
+          <RoasChart data={performanceData} isLoading={isLoading} />
         </Card>
       </div>
 

@@ -8,8 +8,10 @@ import {
   XAxis, 
   YAxis 
 } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const data = [
+// Default fallback data if none is provided
+const defaultData = [
   { date: "Jan 1", roas: 1.5 },
   { date: "Jan 8", roas: 1.6 },
   { date: "Jan 15", roas: 2.0 },
@@ -24,12 +26,30 @@ const data = [
   { date: "Mar 19", roas: 4.2 },
 ];
 
-export function RoasChart() {
+interface ChartProps {
+  data?: Array<{
+    date: string;
+    roas: number | string;
+  }>;
+  isLoading?: boolean;
+}
+
+export function RoasChart({ data = defaultData, isLoading = false }: ChartProps) {
+  if (isLoading) {
+    return <Skeleton className="w-full h-[300px]" />;
+  }
+
+  // Process the data to ensure ROAS is a number
+  const processedData = (data.length > 0 ? data : defaultData).map(item => ({
+    date: item.date,
+    roas: typeof item.roas === 'string' ? parseFloat(item.roas) : item.roas
+  }));
+
   return (
     <div className="w-full h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
-          data={data}
+          data={processedData}
           margin={{
             top: 10,
             right: 30,

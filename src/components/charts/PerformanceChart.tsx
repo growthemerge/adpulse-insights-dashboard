@@ -2,20 +2,18 @@
 import { 
   Area, 
   AreaChart, 
-  Bar, 
-  BarChart, 
   CartesianGrid, 
   ComposedChart, 
   Legend, 
-  Line, 
-  LineChart, 
   ResponsiveContainer, 
   Tooltip, 
   XAxis, 
   YAxis 
 } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const data = [
+// Default fallback data if none is provided
+const defaultData = [
   { date: "Jan 1", spend: 1200, revenue: 1800 },
   { date: "Jan 8", spend: 1400, revenue: 2000 },
   { date: "Jan 15", spend: 1300, revenue: 2200 },
@@ -30,12 +28,27 @@ const data = [
   { date: "Mar 19", spend: 2600, revenue: 5000 },
 ];
 
-export function PerformanceChart() {
+interface ChartProps {
+  data?: Array<{
+    date: string;
+    spend: number;
+    revenue: number;
+  }>;
+  isLoading?: boolean;
+}
+
+export function PerformanceChart({ data = defaultData, isLoading = false }: ChartProps) {
+  if (isLoading) {
+    return <Skeleton className="w-full h-[300px]" />;
+  }
+
+  const chartData = data.length > 0 ? data : defaultData;
+
   return (
     <div className="w-full h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
-          data={data}
+          data={chartData}
           margin={{
             top: 10,
             right: 30,

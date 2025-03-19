@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import {
   FileSpreadsheet, 
   Info, 
   Loader2, 
-  Upload 
+  Upload,
+  Trash2 
 } from 'lucide-react';
 import { 
   Table, 
@@ -24,6 +25,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { db, storage } from '@/lib/firebase';
+import { collection, addDoc, getDocs, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const REQUIRED_COLUMNS = [
   'Date',
@@ -61,12 +65,51 @@ const REQUIRED_COLUMNS = [
   'Reporting ends',
 ];
 
+interface UploadRecord {
+  id: string;
+  fileName: string;
+  dateUploaded: string;
+  dateRange: string;
+  rowCount: number;
+  status: string;
+  downloadUrl: string;
+}
+
 const DataUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [validationStatus, setValidationStatus] = useState<'idle' | 'validating' | 'success' | 'error'>('idle');
   const [validationMessage, setValidationMessage] = useState('');
   const [uploadOption, setUploadOption] = useState<'append' | 'overwrite'>('append');
+  const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState('upload');
+
+  useEffect(() => {
+    fetchUploadHistory();
+  }, []);
+
+  const fetchUploadHistory = async () => {
+    try {
+      const uploadsQuery = query(collection(db, 'fileUploads'), orderBy('dateUploaded', 'desc'));
+      const querySnapshot = await getDocs(uploadsQuery);
+      
+      const uploads: UploadRecord[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as Omit<UploadRecord, 'id'>;
+        uploads.push({
+          id: doc.id,
+          ...data
+        });
+      });
+      
+      setUploadHistory(uploads);
+    } catch (error) {
+      console.error('Error fetching upload history:', error);
+      toast.error('Failed to load upload history');
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -105,24 +148,102 @@ const DataUpload = () => {
     }, 1500);
   };
 
-  const handleUpload = () => {
-    if (validationStatus !== 'success') {
+  const handleUpload = async () => {
+    if (!file || validationStatus !== 'success') {
       toast.error('Please validate the file first');
       return;
     }
 
-    toast.success(`File uploaded successfully with ${uploadOption} option!`);
+    setIsUploading(true);
     
-    // Reset the form
-    setFile(null);
-    setValidationStatus('idle');
-    setValidationMessage('');
-    setUploadOption('append');
+    try {
+      // 1. Upload file to Firebase Storage
+      const storageRef = ref(storage, `uploads/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      
+      // 2. Add record to Firestore
+      const uploadData = {
+        fileName: file.name,
+        dateUploaded: new Date().toISOString(),
+        dateRange: `${new Date().toLocaleDateString()} - ${new Date().toLocaleDateString()}`, // In real app, extract from file
+        rowCount: Math.floor(Math.random() * 300) + 100, // In real app, count actual rows
+        status: 'Success',
+        uploadOption: uploadOption,
+        downloadUrl: downloadUrl
+      };
+      
+      await addDoc(collection(db, 'fileUploads'), uploadData);
+      
+      // 3. Process CSV data (in a real app, this would parse the CSV)
+      // Simulate processing the uploaded data for dashboard
+      const today = new Date();
+      const mockData = Array.from({ length: 12 }, (_, i) => {
+        const date = new Date();
+        date.setMonth(today.getMonth() - 11 + i);
+        return {
+          date: `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`,
+          spend: Math.floor(Math.random() * 2000) + 1000,
+          revenue: Math.floor(Math.random() * 4000) + 2000,
+          roas: (Math.random() * 3 + 1).toFixed(1)
+        };
+      });
+      
+      // Store in Firestore for dashboard use
+      await addDoc(collection(db, 'dashboardData'), {
+        uploadId: Date.now().toString(),
+        data: mockData,
+        createdAt: new Date().toISOString(),
+        fileName: file.name
+      });
+      
+      toast.success(`File uploaded successfully with ${uploadOption} option!`);
+      fetchUploadHistory();
+      
+      // Reset the form
+      setFile(null);
+      setValidationStatus('idle');
+      setValidationMessage('');
+      setUploadOption('append');
+      setActiveTab('history');
+      
+      // Clear the file input
+      const fileInput = document.getElementById('csv-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload file');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileRecord: UploadRecord) => {
+    if (isDeleting) return;
     
-    // Clear the file input
-    const fileInput = document.getElementById('csv-upload') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
+    try {
+      setIsDeleting(true);
+      
+      // 1. Delete from Storage
+      if (fileRecord.downloadUrl) {
+        const storageRef = ref(storage, fileRecord.downloadUrl);
+        await deleteObject(storageRef).catch(err => {
+          console.warn('Storage delete error (may not exist):', err);
+        });
+      }
+      
+      // 2. Delete from Firestore
+      await deleteDoc(doc(db, 'fileUploads', fileRecord.id));
+      
+      toast.success('File deleted successfully');
+      fetchUploadHistory();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete file');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -133,7 +254,7 @@ const DataUpload = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Data Upload</h1>
         <p className="text-muted-foreground mt-1">
@@ -141,7 +262,7 @@ const DataUpload = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="upload" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="upload">Upload CSV</TabsTrigger>
           <TabsTrigger value="format">Format Requirements</TabsTrigger>
@@ -227,11 +348,20 @@ const DataUpload = () => {
                   
                   <Button 
                     onClick={handleUpload}
-                    disabled={validationStatus !== 'success'}
+                    disabled={validationStatus !== 'success' || isUploading}
                     className="bg-brand-blue"
                   >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload
+                      </>
+                    )}
                   </Button>
                 </div>
 
@@ -374,30 +504,40 @@ const DataUpload = () => {
                     <TableHead>Data Range</TableHead>
                     <TableHead>Rows</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell>2023-12-15 10:23 AM</TableCell>
-                    <TableCell>meta-ads-dec-2023.csv</TableCell>
-                    <TableCell>Dec 1 - Dec 15, 2023</TableCell>
-                    <TableCell>156</TableCell>
-                    <TableCell className="text-brand-green">Success</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>2023-12-01 09:15 AM</TableCell>
-                    <TableCell>meta-ads-nov-2023.csv</TableCell>
-                    <TableCell>Nov 1 - Nov 30, 2023</TableCell>
-                    <TableCell>302</TableCell>
-                    <TableCell className="text-brand-green">Success</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>2023-11-15 11:45 AM</TableCell>
-                    <TableCell>meta-ads-oct-2023.csv</TableCell>
-                    <TableCell>Oct 1 - Oct 31, 2023</TableCell>
-                    <TableCell>298</TableCell>
-                    <TableCell className="text-brand-green">Success</TableCell>
-                  </TableRow>
+                  {uploadHistory.length > 0 ? (
+                    uploadHistory.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          {new Date(record.dateUploaded).toLocaleString()}
+                        </TableCell>
+                        <TableCell>{record.fileName}</TableCell>
+                        <TableCell>{record.dateRange}</TableCell>
+                        <TableCell>{record.rowCount}</TableCell>
+                        <TableCell className="text-brand-green">{record.status}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteFile(record)}
+                            disabled={isDeleting}
+                            className="h-8 w-8 text-brand-red hover:text-brand-red/80 hover:bg-brand-red/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        No upload history found. Upload a file to see it here.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>
