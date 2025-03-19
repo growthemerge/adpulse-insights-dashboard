@@ -57,7 +57,12 @@
   }
   
   body {
-    @apply bg-brand-darkBlue text-foreground font-sans antialiased selection:bg-brand-green/10 selection:text-brand-green;
+    @apply bg-brand-darkBlue text-foreground antialiased selection:bg-brand-green/10 selection:text-brand-green;
+    font-family: 'Inter', 'Roboto', system-ui, sans-serif;
+  }
+  
+  code, pre, kbd {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
   }
   
   ::-webkit-scrollbar {

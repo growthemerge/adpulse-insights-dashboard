@@ -37,9 +37,9 @@ const DashboardLayout = () => {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   return (
-    <div className="min-h-screen bg-brand-darkBlue flex flex-col">
+    <div className="min-h-screen bg-brand-darkBlue flex">
       {/* Mobile header */}
-      <div className="lg:hidden flex items-center justify-between p-4 bg-card">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-card">
         <div className="flex items-center">
           <button
             type="button"
@@ -68,7 +68,7 @@ const DashboardLayout = () => {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-30 w-64 transform bg-card border-r border-border transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen lg:flex-shrink-0",
+          "fixed inset-y-0 left-0 z-30 w-64 transform bg-card border-r border-border transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -140,7 +140,7 @@ const DashboardLayout = () => {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col lg:pl-0 pt-16 lg:pt-0 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />
         </main>
