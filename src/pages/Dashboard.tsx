@@ -43,8 +43,6 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
-      console.log("Fetching dashboard data...");
-      
       const dashboardQuery = query(
         collection(db, 'dashboardData'),
         orderBy('createdAt', 'desc'),
@@ -52,7 +50,6 @@ const Dashboard = () => {
       );
       
       const querySnapshot = await getDocs(dashboardQuery);
-      console.log("Dashboard query executed, docs found:", querySnapshot.size);
       
       if (!querySnapshot.empty) {
         const dashboardDoc = querySnapshot.docs[0].data();

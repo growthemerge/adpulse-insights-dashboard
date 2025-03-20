@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -105,7 +104,6 @@ const DataUpload = () => {
       });
       
       setUploadHistory(uploads);
-      console.log("Fetched upload history:", uploads);
     } catch (error) {
       console.error('Error fetching upload history:', error);
       toast.error('Failed to load upload history');
@@ -174,29 +172,23 @@ const DataUpload = () => {
     setIsUploading(true);
     
     try {
-      console.log("Starting file upload process...");
-      
       // 1. Upload file to Firebase Storage
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
-      console.log("File uploaded to storage");
-      
       const downloadUrl = await getDownloadURL(storageRef);
-      console.log("Download URL obtained:", downloadUrl);
       
       // 2. Generate mock data for charts
       const mockData = generateMockData();
-      console.log("Generated mock data:", mockData);
       
-      // 3. Store dashboard data in Firestore with current timestamp
+      // 3. Store dashboard data in Firestore
       const dashboardDocRef = await addDoc(collection(db, 'dashboardData'), {
         uploadId: Date.now().toString(),
         data: mockData,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         fileName: file.name
       });
       
-      console.log("Dashboard data added with ID:", dashboardDocRef.id);
+      console.log("Dashboard data added with ID: ", dashboardDocRef.id);
       
       // 4. Add record to fileUploads collection
       const uploadData = {
@@ -209,13 +201,12 @@ const DataUpload = () => {
         downloadUrl: downloadUrl
       };
       
-      const uploadRef = await addDoc(collection(db, 'fileUploads'), uploadData);
-      console.log("File upload record created with ID:", uploadRef.id);
+      await addDoc(collection(db, 'fileUploads'), uploadData);
       
       toast.success(`File uploaded successfully with ${uploadOption} option!`);
       
       // Refresh the upload history
-      await fetchUploadHistory();
+      fetchUploadHistory();
       
       // Reset the form
       setFile(null);
