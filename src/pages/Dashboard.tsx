@@ -53,10 +53,19 @@ const Dashboard = () => {
       
       if (!querySnapshot.empty) {
         const dashboardDoc = querySnapshot.docs[0].data();
-        const chartData = dashboardDoc.data as DashboardData[];
-        setPerformanceData(chartData);
-        setHasData(true);
+        console.log("Dashboard data retrieved:", dashboardDoc);
+        
+        if (dashboardDoc && dashboardDoc.data && Array.isArray(dashboardDoc.data)) {
+          const chartData = dashboardDoc.data as DashboardData[];
+          setPerformanceData(chartData);
+          setHasData(true);
+        } else {
+          console.error("Dashboard data is not in the expected format:", dashboardDoc);
+          setHasData(false);
+          toast.error("Data format error. Please try uploading again.");
+        }
       } else {
+        console.log("No dashboard data found in the database");
         setHasData(false);
       }
     } catch (error) {

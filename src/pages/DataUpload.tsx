@@ -414,7 +414,7 @@ const DataUpload = () => {
                     <Button 
                       onClick={handleUpload}
                       disabled={isUploading}
-                      className="bg-brand-blue mt-2"
+                      className="bg-brand-cyan hover:bg-brand-cyan/90 text-white font-medium"
                     >
                       {isUploading ? (
                         <>
@@ -424,7 +424,7 @@ const DataUpload = () => {
                       ) : (
                         <>
                           <Upload className="mr-2 h-4 w-4" />
-                          Upload
+                          Upload File
                         </>
                       )}
                     </Button>

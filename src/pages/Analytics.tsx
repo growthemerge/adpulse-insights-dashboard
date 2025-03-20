@@ -44,10 +44,19 @@ const Analytics = () => {
       
       if (!querySnapshot.empty) {
         const dashboardDoc = querySnapshot.docs[0].data();
-        const chartData = dashboardDoc.data as DashboardData[];
-        setPerformanceData(chartData);
-        setHasData(true);
+        console.log("Analytics data retrieved:", dashboardDoc);
+        
+        if (dashboardDoc && dashboardDoc.data && Array.isArray(dashboardDoc.data)) {
+          const chartData = dashboardDoc.data as DashboardData[];
+          setPerformanceData(chartData);
+          setHasData(true);
+        } else {
+          console.error("Analytics data is not in the expected format:", dashboardDoc);
+          setHasData(false);
+          toast.error("Data format error in Analytics. Please try uploading again.");
+        }
       } else {
+        console.log("No analytics data found in the database");
         setHasData(false);
       }
     } catch (error) {
@@ -67,7 +76,7 @@ const Analytics = () => {
       const roas = typeof item.roas === 'string' ? parseFloat(item.roas) : item.roas;
       return sum + roas;
     }, 0);
-    return total / performanceData.length;
+    return performanceData.length > 0 ? total / performanceData.length : 0;
   };
 
   return (
