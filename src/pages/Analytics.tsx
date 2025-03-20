@@ -35,6 +35,8 @@ const Analytics = () => {
   const fetchAnalyticsData = async () => {
     try {
       setIsLoading(true);
+      console.log("Fetching analytics data...");
+      
       const dashboardQuery = query(
         collection(db, 'dashboardData'),
         orderBy('createdAt', 'desc'),
@@ -42,6 +44,7 @@ const Analytics = () => {
       );
       
       const querySnapshot = await getDocs(dashboardQuery);
+      console.log("Analytics query executed, docs found:", querySnapshot.size);
       
       if (!querySnapshot.empty) {
         const dashboardDoc = querySnapshot.docs[0].data();
