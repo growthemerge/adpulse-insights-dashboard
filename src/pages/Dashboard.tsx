@@ -57,6 +57,7 @@ const Dashboard = () => {
         
         if (dashboardDoc && dashboardDoc.data && Array.isArray(dashboardDoc.data)) {
           const chartData = dashboardDoc.data as DashboardData[];
+          console.log("Chart data:", chartData);
           setPerformanceData(chartData);
           setHasData(true);
         } else {

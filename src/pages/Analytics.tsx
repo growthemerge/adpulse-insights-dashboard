@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { BarChart3, LineChart, PieChart } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 
 interface DashboardData {
   date: string;
@@ -48,6 +49,7 @@ const Analytics = () => {
         
         if (dashboardDoc && dashboardDoc.data && Array.isArray(dashboardDoc.data)) {
           const chartData = dashboardDoc.data as DashboardData[];
+          console.log("Analytics chart data:", chartData);
           setPerformanceData(chartData);
           setHasData(true);
         } else {
@@ -147,6 +149,36 @@ const Analytics = () => {
                       </span>
                     </div>
                   </Card>
+                </div>
+
+                {/* ROAS by campaign visualization */}
+                <div className="mt-8 mb-6">
+                  <h3 className="text-md font-semibold mb-4">Campaign ROAS Performance</h3>
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Summer Sale</span>
+                        <span className="text-sm text-brand-green">4.2x</span>
+                      </div>
+                      <Progress value={84} className="h-2" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Spring Collection</span>
+                        <span className="text-sm text-brand-gold">2.8x</span>
+                      </div>
+                      <Progress value={56} className="h-2" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Winter Collection</span>
+                        <span className="text-sm text-brand-red">0.9x</span>
+                      </div>
+                      <Progress value={18} className="h-2" />
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="overflow-x-auto">

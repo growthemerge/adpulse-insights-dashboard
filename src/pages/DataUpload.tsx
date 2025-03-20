@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const REQUIRED_COLUMNS = [
@@ -174,11 +173,24 @@ const DataUpload = () => {
     
     try {
       // 1. Upload file to Firebase Storage
-      const storageRef = ref(storage, `uploads/${file.name}`);
+      const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const downloadUrl = await getDownloadURL(storageRef);
       
-      // 2. Add record to Firestore
+      // 2. Generate mock data for charts
+      const mockData = generateMockData();
+      
+      // 3. Store dashboard data in Firestore
+      const dashboardDocRef = await addDoc(collection(db, 'dashboardData'), {
+        uploadId: Date.now().toString(),
+        data: mockData,
+        createdAt: new Date().toISOString(),
+        fileName: file.name
+      });
+      
+      console.log("Dashboard data added with ID: ", dashboardDocRef.id);
+      
+      // 4. Add record to fileUploads collection
       const uploadData = {
         fileName: file.name,
         dateUploaded: new Date().toISOString(),
@@ -191,18 +203,9 @@ const DataUpload = () => {
       
       await addDoc(collection(db, 'fileUploads'), uploadData);
       
-      // 3. Generate and store mock data for dashboard visualization
-      const mockData = generateMockData();
-      
-      // Store in Firestore for dashboard use
-      await addDoc(collection(db, 'dashboardData'), {
-        uploadId: Date.now().toString(),
-        data: mockData,
-        createdAt: new Date().toISOString(),
-        fileName: file.name
-      });
-      
       toast.success(`File uploaded successfully with ${uploadOption} option!`);
+      
+      // Refresh the upload history
       fetchUploadHistory();
       
       // Reset the form
@@ -233,10 +236,12 @@ const DataUpload = () => {
       
       // 1. Delete from Storage
       if (fileRecord.downloadUrl) {
-        const storageRef = ref(storage, fileRecord.downloadUrl);
-        await deleteObject(storageRef).catch(err => {
+        try {
+          const storageRef = ref(storage, fileRecord.downloadUrl);
+          await deleteObject(storageRef);
+        } catch (err) {
           console.warn('Storage delete error (may not exist):', err);
-        });
+        }
       }
       
       // 2. Delete from Firestore
@@ -414,7 +419,7 @@ const DataUpload = () => {
                     <Button 
                       onClick={handleUpload}
                       disabled={isUploading}
-                      className="bg-brand-cyan hover:bg-brand-cyan/90 text-white font-medium"
+                      className="bg-brand-cyan hover:bg-brand-cyan/90 text-white font-medium shadow-lg"
                     >
                       {isUploading ? (
                         <>
