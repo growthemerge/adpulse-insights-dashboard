@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -91,6 +92,7 @@ const DataUpload = () => {
 
   const fetchUploadHistory = async () => {
     try {
+      console.log("Fetching upload history...");
       const uploadsQuery = query(collection(db, 'fileUploads'), orderBy('dateUploaded', 'desc'));
       const querySnapshot = await getDocs(uploadsQuery);
       
@@ -103,6 +105,7 @@ const DataUpload = () => {
         });
       });
       
+      console.log("Fetched upload history:", uploads);
       setUploadHistory(uploads);
     } catch (error) {
       console.error('Error fetching upload history:', error);
@@ -170,30 +173,38 @@ const DataUpload = () => {
     }
 
     setIsUploading(true);
+    console.log("Starting upload process...");
     
     try {
       // 1. Upload file to Firebase Storage
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
+      console.log("File uploaded to storage");
+      
       const downloadUrl = await getDownloadURL(storageRef);
+      console.log("Download URL obtained:", downloadUrl);
       
       // 2. Generate mock data for charts
       const mockData = generateMockData();
+      console.log("Generated mock data for dashboard");
       
       // 3. Store dashboard data in Firestore
+      const currentTimestamp = serverTimestamp();
+      const uploadId = Date.now().toString();
+      
       const dashboardDocRef = await addDoc(collection(db, 'dashboardData'), {
-        uploadId: Date.now().toString(),
+        uploadId: uploadId,
         data: mockData,
-        createdAt: new Date().toISOString(),
+        createdAt: currentTimestamp,
         fileName: file.name
       });
       
-      console.log("Dashboard data added with ID: ", dashboardDocRef.id);
+      console.log("Dashboard data added with ID:", dashboardDocRef.id);
       
       // 4. Add record to fileUploads collection
       const uploadData = {
         fileName: file.name,
-        dateUploaded: new Date().toISOString(),
+        dateUploaded: currentTimestamp,
         dateRange: `${new Date().toLocaleDateString()} - ${new Date().toLocaleDateString()}`, // In real app, extract from file
         rowCount: Math.floor(Math.random() * 300) + 100, // In real app, count actual rows
         status: 'Success',
@@ -201,7 +212,8 @@ const DataUpload = () => {
         downloadUrl: downloadUrl
       };
       
-      await addDoc(collection(db, 'fileUploads'), uploadData);
+      const uploadRef = await addDoc(collection(db, 'fileUploads'), uploadData);
+      console.log("Upload record added with ID:", uploadRef.id);
       
       toast.success(`File uploaded successfully with ${uploadOption} option!`);
       
@@ -233,12 +245,14 @@ const DataUpload = () => {
     
     try {
       setIsDeleting(true);
+      console.log("Starting delete process for record:", fileRecord.id);
       
       // 1. Delete from Storage
       if (fileRecord.downloadUrl) {
         try {
           const storageRef = ref(storage, fileRecord.downloadUrl);
           await deleteObject(storageRef);
+          console.log("File deleted from storage");
         } catch (err) {
           console.warn('Storage delete error (may not exist):', err);
         }
@@ -246,6 +260,7 @@ const DataUpload = () => {
       
       // 2. Delete from Firestore
       await deleteDoc(doc(db, 'fileUploads', fileRecord.id));
+      console.log("File record deleted from Firestore");
       
       toast.success('File deleted successfully');
       fetchUploadHistory();
@@ -419,7 +434,7 @@ const DataUpload = () => {
                     <Button 
                       onClick={handleUpload}
                       disabled={isUploading}
-                      className="bg-brand-cyan hover:bg-brand-cyan/90 text-white font-medium shadow-lg"
+                      className="bg-brand-cyan hover:bg-brand-cyan/90 text-white font-medium"
                     >
                       {isUploading ? (
                         <>
@@ -522,7 +537,9 @@ const DataUpload = () => {
                     uploadHistory.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell>
-                          {new Date(record.dateUploaded).toLocaleString()}
+                          {typeof record.dateUploaded === 'string' 
+                            ? new Date(record.dateUploaded).toLocaleString() 
+                            : 'N/A'}
                         </TableCell>
                         <TableCell>{record.fileName}</TableCell>
                         <TableCell>{record.dateRange}</TableCell>

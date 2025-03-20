@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDCLqJHwZDLQydboXaioYl7LN1xejIVNW4",
   authDomain: "adpulse-analytics-644b0.firebaseapp.com",
   projectId: "adpulse-analytics-644b0",
-  storageBucket: "adpulse-analytics-644b0.firebasestorage.app",
+  storageBucket: "adpulse-analytics-644b0.appspot.com", // This was incorrect
   messagingSenderId: "168984041768",
   appId: "1:168984041768:web:f4a29993f374344dfc581d",
   measurementId: "G-LQF3P6HQVS"
