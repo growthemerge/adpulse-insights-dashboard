@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, getDocs, doc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const REQUIRED_COLUMNS = [
@@ -68,7 +67,7 @@ const REQUIRED_COLUMNS = [
 interface UploadRecord {
   id: string;
   fileName: string;
-  dateUploaded: string;
+  dateUploaded: Timestamp | string;
   dateRange: string;
   rowCount: number;
   status: string;
@@ -98,10 +97,15 @@ const DataUpload = () => {
       
       const uploads: UploadRecord[] = [];
       querySnapshot.forEach((doc) => {
-        const data = doc.data() as Omit<UploadRecord, 'id'>;
+        const data = doc.data();
         uploads.push({
           id: doc.id,
-          ...data
+          fileName: data.fileName || 'Unknown',
+          dateUploaded: data.dateUploaded || 'Unknown date',
+          dateRange: data.dateRange || 'Unknown range',
+          rowCount: data.rowCount || 0,
+          status: data.status || 'Unknown',
+          downloadUrl: data.downloadUrl || '',
         });
       });
       
@@ -173,38 +177,39 @@ const DataUpload = () => {
     }
 
     setIsUploading(true);
-    console.log("Starting upload process...");
+    console.log("Starting upload process for file:", file.name);
     
     try {
       // 1. Upload file to Firebase Storage
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      console.log("File uploaded to storage");
+      console.log("Storage reference created:", storageRef.fullPath);
+      
+      const uploadResult = await uploadBytes(storageRef, file);
+      console.log("File uploaded to storage successfully:", uploadResult);
       
       const downloadUrl = await getDownloadURL(storageRef);
       console.log("Download URL obtained:", downloadUrl);
       
       // 2. Generate mock data for charts
       const mockData = generateMockData();
-      console.log("Generated mock data for dashboard");
+      console.log("Generated mock data for dashboard:", mockData);
       
       // 3. Store dashboard data in Firestore
-      const currentTimestamp = serverTimestamp();
-      const uploadId = Date.now().toString();
-      
+      console.log("Adding dashboard data to Firestore...");
       const dashboardDocRef = await addDoc(collection(db, 'dashboardData'), {
-        uploadId: uploadId,
+        uploadId: Date.now().toString(),
         data: mockData,
-        createdAt: currentTimestamp,
+        createdAt: serverTimestamp(),
         fileName: file.name
       });
       
       console.log("Dashboard data added with ID:", dashboardDocRef.id);
       
       // 4. Add record to fileUploads collection
+      console.log("Adding upload record to Firestore...");
       const uploadData = {
         fileName: file.name,
-        dateUploaded: currentTimestamp,
+        dateUploaded: serverTimestamp(),
         dateRange: `${new Date().toLocaleDateString()} - ${new Date().toLocaleDateString()}`, // In real app, extract from file
         rowCount: Math.floor(Math.random() * 300) + 100, // In real app, count actual rows
         status: 'Success',
@@ -218,7 +223,7 @@ const DataUpload = () => {
       toast.success(`File uploaded successfully with ${uploadOption} option!`);
       
       // Refresh the upload history
-      fetchUploadHistory();
+      await fetchUploadHistory();
       
       // Reset the form
       setFile(null);
@@ -234,7 +239,7 @@ const DataUpload = () => {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload file');
+      toast.error('Failed to upload file. Check console for details.');
     } finally {
       setIsUploading(false);
     }
@@ -255,6 +260,7 @@ const DataUpload = () => {
           console.log("File deleted from storage");
         } catch (err) {
           console.warn('Storage delete error (may not exist):', err);
+          // Continue with Firestore deletion even if Storage deletion fails
         }
       }
       
@@ -276,6 +282,28 @@ const DataUpload = () => {
     // In a real app, this would generate a template CSV file
     // For now, we'll just show a toast message
     toast.success('Template downloaded successfully!');
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      // It's a Firestore Timestamp
+      return timestamp.toDate().toLocaleString();
+    } else if (timestamp.seconds && timestamp.nanoseconds) {
+      // It's a Firestore Timestamp object but not converted
+      return new Date(timestamp.seconds * 1000).toLocaleString();
+    } else if (typeof timestamp === 'string') {
+      // It's already a string
+      return timestamp;
+    } else {
+      // Try to convert from any date object
+      try {
+        return new Date(timestamp).toLocaleString();
+      } catch (e) {
+        return 'Invalid date';
+      }
+    }
   };
 
   return (
@@ -537,9 +565,7 @@ const DataUpload = () => {
                     uploadHistory.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell>
-                          {typeof record.dateUploaded === 'string' 
-                            ? new Date(record.dateUploaded).toLocaleString() 
-                            : 'N/A'}
+                          {formatDate(record.dateUploaded)}
                         </TableCell>
                         <TableCell>{record.fileName}</TableCell>
                         <TableCell>{record.dateRange}</TableCell>

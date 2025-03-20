@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { 
@@ -42,36 +41,41 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      console.log("Dashboard - Starting to fetch dashboard data...");
       setIsLoading(true);
+      
       const dashboardQuery = query(
         collection(db, 'dashboardData'),
         orderBy('createdAt', 'desc'),
         limit(1)
       );
       
+      console.log("Dashboard - Executing query...");
       const querySnapshot = await getDocs(dashboardQuery);
+      console.log("Dashboard - Query complete, snapshot size:", querySnapshot.size);
       
       if (!querySnapshot.empty) {
         const dashboardDoc = querySnapshot.docs[0].data();
-        console.log("Dashboard data retrieved:", dashboardDoc);
+        console.log("Dashboard - Retrieved document:", dashboardDoc);
         
         if (dashboardDoc && dashboardDoc.data && Array.isArray(dashboardDoc.data)) {
+          console.log("Dashboard - Valid data array found with length:", dashboardDoc.data.length);
           const chartData = dashboardDoc.data as DashboardData[];
-          console.log("Chart data:", chartData);
           setPerformanceData(chartData);
           setHasData(true);
         } else {
-          console.error("Dashboard data is not in the expected format:", dashboardDoc);
+          console.error("Dashboard - Data format error:", dashboardDoc);
           setHasData(false);
           toast.error("Data format error. Please try uploading again.");
         }
       } else {
-        console.log("No dashboard data found in the database");
+        console.log("Dashboard - No dashboard data found in the database");
         setHasData(false);
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Dashboard - Error fetching dashboard data:', error);
       toast.error('Failed to load dashboard data');
+      setHasData(false);
     } finally {
       setIsLoading(false);
     }
@@ -184,17 +188,69 @@ const Dashboard = () => {
         </div>
       ) : hasData ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {metrics.map((metric, index) => (
-            <MetricCard
-              key={index}
-              title={metric.title}
-              value={metric.value}
-              change={metric.change}
-              isPositive={metric.isPositive}
-              icon={metric.icon}
-              colorClass={metric.color}
-            />
-          ))}
+          {(() => {
+            const calculated = calculateMetrics();
+            return [
+              {
+                title: "Total Spend",
+                value: `₹${calculated.totalSpend.toLocaleString()}`,
+                change: "+12.3%",
+                isPositive: false,
+                icon: CreditCard,
+                color: "bg-brand-orange/10 text-brand-orange",
+              },
+              {
+                title: "Total Revenue",
+                value: `₹${calculated.totalRevenue.toLocaleString()}`,
+                change: "+23.5%",
+                isPositive: true,
+                icon: DollarSign,
+                color: "bg-brand-green/10 text-brand-green",
+              },
+              {
+                title: "Orders",
+                value: calculated.orders.toLocaleString(),
+                change: "+18.2%",
+                isPositive: true,
+                icon: ShoppingCart,
+                color: "bg-brand-teal/10 text-brand-teal",
+              },
+              {
+                title: "Website Visitors",
+                value: calculated.visitors.toLocaleString(),
+                change: "+9.8%",
+                isPositive: true,
+                icon: UsersIcon,
+                color: "bg-brand-skyBlue/10 text-brand-skyBlue",
+              },
+              {
+                title: "ROAS",
+                value: `${calculated.averageRoas.toFixed(1)}x`,
+                change: "+11.2%",
+                isPositive: true,
+                icon: BarChart4,
+                color: "bg-brand-gold/10 text-brand-gold",
+              },
+              {
+                title: "Avg. CPC",
+                value: `₹${calculated.avgCpc.toFixed(2)}`,
+                change: "-5.2%",
+                isPositive: true,
+                icon: CreditCard,
+                color: "bg-brand-cyan/10 text-brand-cyan",
+              },
+            ].map((metric, index) => (
+              <MetricCard
+                key={index}
+                title={metric.title}
+                value={metric.value}
+                change={metric.change}
+                isPositive={metric.isPositive}
+                icon={metric.icon}
+                colorClass={metric.color}
+              />
+            ));
+          })()}
         </div>
       ) : (
         <Card className="p-6 text-center">
