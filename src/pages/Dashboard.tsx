@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { 
@@ -23,6 +24,15 @@ interface DashboardData {
   spend: number;
   revenue: number;
   roas: number | string;
+  campaign_name?: string;
+  ad_set_name?: string;
+  impressions?: number;
+  link_clicks?: number;
+  results?: number;
+  cpc?: number;
+  cpm?: number;
+  adds_to_cart?: number;
+  checkouts_initiated?: number;
 }
 
 const Dashboard = () => {
@@ -36,6 +46,7 @@ const Dashboard = () => {
   const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
+    console.log("Dashboard - Initializing, calling fetchDashboardData...");
     fetchDashboardData();
   }, []);
 
@@ -44,32 +55,63 @@ const Dashboard = () => {
       console.log("Dashboard - Starting to fetch dashboard data...");
       setIsLoading(true);
       
-      const dashboardQuery = query(
-        collection(db, 'dashboardData'),
-        orderBy('createdAt', 'desc'),
+      // Get the latest upload from upload_history collection
+      const uploadsQuery = query(
+        collection(db, 'upload_history'),
+        orderBy('uploaded_at', 'desc'),
         limit(1)
       );
       
-      console.log("Dashboard - Executing query...");
-      const querySnapshot = await getDocs(dashboardQuery);
+      console.log("Dashboard - Executing query for latest upload...");
+      const querySnapshot = await getDocs(uploadsQuery);
       console.log("Dashboard - Query complete, snapshot size:", querySnapshot.size);
       
       if (!querySnapshot.empty) {
-        const dashboardDoc = querySnapshot.docs[0].data();
-        console.log("Dashboard - Retrieved document:", dashboardDoc);
+        const uploadDoc = querySnapshot.docs[0].data();
+        console.log("Dashboard - Retrieved document:", uploadDoc);
         
-        if (dashboardDoc && dashboardDoc.data && Array.isArray(dashboardDoc.data)) {
-          console.log("Dashboard - Valid data array found with length:", dashboardDoc.data.length);
-          const chartData = dashboardDoc.data as DashboardData[];
+        if (uploadDoc && uploadDoc.data && Array.isArray(uploadDoc.data)) {
+          console.log("Dashboard - Valid data array found with length:", uploadDoc.data.length);
+          
+          // Transform the data to match our dashboard model
+          const chartData: DashboardData[] = uploadDoc.data.map((item: any) => ({
+            date: item.date,
+            spend: item.spend || 0,
+            revenue: item.revenue || 0, // Using Purchases conversion value
+            roas: item.roas || "0", 
+            campaign_name: item.campaign_name,
+            ad_set_name: item.ad_set_name,
+            impressions: item.impressions,
+            link_clicks: item.link_clicks,
+            results: item.results,
+            cpc: item.cpc,
+            cpm: item.cpm,
+            adds_to_cart: item.adds_to_cart,
+            checkouts_initiated: item.checkouts_initiated
+          }));
+          
+          console.log("Dashboard - Transformed chart data:", chartData);
           setPerformanceData(chartData);
           setHasData(true);
+          
+          // If we have start_date and end_date in the upload, update the date range
+          if (uploadDoc.start_date && uploadDoc.end_date) {
+            try {
+              const startDate = new Date(uploadDoc.start_date);
+              const endDate = new Date(uploadDoc.end_date);
+              console.log("Dashboard - Setting date range:", { from: startDate, to: endDate });
+              setDateRange({ from: startDate, to: endDate });
+            } catch (error) {
+              console.error("Dashboard - Error parsing dates:", error);
+            }
+          }
         } else {
-          console.error("Dashboard - Data format error:", dashboardDoc);
+          console.error("Dashboard - Data format error:", uploadDoc);
           setHasData(false);
-          toast.error("Data format error. Please try uploading again.");
+          toast.error("Data format error in the upload. Please try uploading again.");
         }
       } else {
-        console.log("Dashboard - No dashboard data found in the database");
+        console.log("Dashboard - No upload history found in the database");
         setHasData(false);
       }
     } catch (error) {
@@ -95,12 +137,16 @@ const Dashboard = () => {
     const totalSpend = performanceData.reduce((sum, item) => sum + item.spend, 0);
     const totalRevenue = performanceData.reduce((sum, item) => sum + item.revenue, 0);
     
+    // Calculate ROAS as revenue divided by spend
     const averageRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
     
-    // Estimate other metrics based on real data
-    const orders = Math.floor(totalRevenue / 250); // Average order value of ₹250
-    const visitors = Math.floor(totalSpend * 5); // Estimate 5 visitors per rupee spent
-    const avgCpc = totalSpend > 0 && visitors > 0 ? totalSpend / (visitors * 0.2) : 0; // Assume 20% click rate
+    // Get metrics directly from the data where possible
+    const orders = performanceData.reduce((sum, item) => sum + (item.results || 0), 0);
+    const visitors = performanceData.reduce((sum, item) => sum + (item.link_clicks || 0), 0);
+    
+    // Calculate average CPC based on the data
+    const totalClicks = performanceData.reduce((sum, item) => sum + (item.link_clicks || 0), 0);
+    const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
     
     return {
       totalSpend,

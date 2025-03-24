@@ -91,28 +91,35 @@ const DataUpload = () => {
 
   const fetchUploadHistory = async () => {
     try {
-      console.log("Fetching upload history...");
-      const uploadsQuery = query(collection(db, 'fileUploads'), orderBy('dateUploaded', 'desc'));
+      console.log("DataUpload - Starting to fetch upload history...");
+      const uploadsQuery = query(
+        collection(db, 'upload_history'),
+        orderBy('uploaded_at', 'desc')
+      );
+      
+      console.log("DataUpload - Executing query...");
       const querySnapshot = await getDocs(uploadsQuery);
+      console.log("DataUpload - Query complete, snapshot size:", querySnapshot.size);
       
       const uploads: UploadRecord[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        console.log("DataUpload - Processing upload record:", data);
         uploads.push({
           id: doc.id,
-          fileName: data.fileName || 'Unknown',
-          dateUploaded: data.dateUploaded || 'Unknown date',
-          dateRange: data.dateRange || 'Unknown range',
-          rowCount: data.rowCount || 0,
-          status: data.status || 'Unknown',
-          downloadUrl: data.downloadUrl || '',
+          fileName: data.filename || 'Unknown',
+          dateUploaded: data.uploaded_at || 'Unknown date',
+          dateRange: `${data.start_date || 'Unknown'} - ${data.end_date || 'Unknown'}`,
+          rowCount: data.row_count || 0,
+          status: 'Success',
+          downloadUrl: data.download_url || '',
         });
       });
       
-      console.log("Fetched upload history:", uploads);
+      console.log("DataUpload - Fetched upload history:", uploads);
       setUploadHistory(uploads);
     } catch (error) {
-      console.error('Error fetching upload history:', error);
+      console.error('DataUpload - Error fetching upload history:', error);
       toast.error('Failed to load upload history');
     }
   };
@@ -161,11 +168,31 @@ const DataUpload = () => {
     return Array.from({ length: 12 }, (_, i) => {
       const date = new Date();
       date.setMonth(today.getMonth() - 11 + i);
+      
+      // Create properly formatted date string for start/end dates
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
       return {
-        date: `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`,
-        spend: Math.floor(Math.random() * 2000) + 1000,
-        revenue: Math.floor(Math.random() * 4000) + 2000,
-        roas: (Math.random() * 3 + 1).toFixed(1)
+        date: dateStr,
+        campaign_name: [`Summer Promo`, `Winter Sale`, `Spring Collection`, `Holiday Special`][i % 4],
+        ad_set_name: [`Conversion`, `Awareness`, `Retargeting`, `Lookalike`][i % 4],
+        reach: Math.floor(Math.random() * 10000) + 5000,
+        impressions: Math.floor(Math.random() * 20000) + 10000,
+        frequency: (Math.random() * 2 + 1).toFixed(2),
+        result_type: "Purchases",
+        results: Math.floor(Math.random() * 100) + 50,
+        spend: Math.floor(Math.random() * 2000) + 1000, // Amount spent (INR)
+        cost_per_result: Math.floor(Math.random() * 50) + 20,
+        roas: (Math.random() * 3 + 1).toFixed(1), // Purchase ROAS
+        revenue: Math.floor(Math.random() * 4000) + 2000, // Purchases conversion value
+        link_clicks: Math.floor(Math.random() * 1000) + 500,
+        cpc: (Math.random() * 2 + 0.5).toFixed(2), // CPC (cost per link click)
+        cpm: (Math.random() * 200 + 100).toFixed(2), // CPM
+        ctr: (Math.random() * 0.05 + 0.01).toFixed(3), // CTR (all)
+        clicks_all: Math.floor(Math.random() * 1500) + 700,
+        adds_to_cart: Math.floor(Math.random() * 300) + 150,
+        checkouts_initiated: Math.floor(Math.random() * 150) + 70,
+        cost_per_add_to_cart: (Math.random() * 10 + 5).toFixed(2),
       };
     });
   };
@@ -177,50 +204,46 @@ const DataUpload = () => {
     }
 
     setIsUploading(true);
-    console.log("Starting upload process for file:", file.name);
+    console.log("DataUpload - Starting upload process for file:", file.name);
     
     try {
       // 1. Upload file to Firebase Storage
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
-      console.log("Storage reference created:", storageRef.fullPath);
+      console.log("DataUpload - Storage reference created:", storageRef.fullPath);
       
       const uploadResult = await uploadBytes(storageRef, file);
-      console.log("File uploaded to storage successfully:", uploadResult);
+      console.log("DataUpload - File uploaded to storage successfully:", uploadResult);
       
       const downloadUrl = await getDownloadURL(storageRef);
-      console.log("Download URL obtained:", downloadUrl);
+      console.log("DataUpload - Download URL obtained:", downloadUrl);
       
       // 2. Generate mock data for charts
       const mockData = generateMockData();
-      console.log("Generated mock data for dashboard:", mockData);
+      console.log("DataUpload - Generated mock data:", mockData);
       
-      // 3. Store dashboard data in Firestore
-      console.log("Adding dashboard data to Firestore...");
-      const dashboardDocRef = await addDoc(collection(db, 'dashboardData'), {
-        uploadId: Date.now().toString(),
-        data: mockData,
-        createdAt: serverTimestamp(),
-        fileName: file.name
-      });
+      // Get min and max dates from the data
+      const dates = mockData.map(item => item.date);
+      const startDate = dates.reduce((a, b) => a < b ? a : b);
+      const endDate = dates.reduce((a, b) => a > b ? a : b);
       
-      console.log("Dashboard data added with ID:", dashboardDocRef.id);
-      
-      // 4. Add record to fileUploads collection
-      console.log("Adding upload record to Firestore...");
+      // 3. Store upload data in Firestore with correct structure
+      console.log("DataUpload - Adding upload to upload_history...");
       const uploadData = {
-        fileName: file.name,
-        dateUploaded: serverTimestamp(),
-        dateRange: `${new Date().toLocaleDateString()} - ${new Date().toLocaleDateString()}`, // In real app, extract from file
-        rowCount: Math.floor(Math.random() * 300) + 100, // In real app, count actual rows
-        status: 'Success',
-        uploadOption: uploadOption,
-        downloadUrl: downloadUrl
+        upload_id: Date.now().toString(),
+        uploaded_at: serverTimestamp(),
+        start_date: startDate,
+        end_date: endDate,
+        filename: file.name,
+        row_count: mockData.length,
+        upload_option: uploadOption,
+        download_url: downloadUrl,
+        data: mockData // Store the actual data in the document
       };
       
-      const uploadRef = await addDoc(collection(db, 'fileUploads'), uploadData);
-      console.log("Upload record added with ID:", uploadRef.id);
+      const uploadRef = await addDoc(collection(db, 'upload_history'), uploadData);
+      console.log("DataUpload - Upload record added with ID:", uploadRef.id);
       
-      toast.success(`File uploaded successfully with ${uploadOption} option!`);
+      toast.success(`File uploaded successfully!`);
       
       // Refresh the upload history
       await fetchUploadHistory();
@@ -238,7 +261,7 @@ const DataUpload = () => {
         fileInput.value = '';
       }
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('DataUpload - Upload error:', error);
       toast.error('Failed to upload file. Check console for details.');
     } finally {
       setIsUploading(false);
@@ -250,28 +273,28 @@ const DataUpload = () => {
     
     try {
       setIsDeleting(true);
-      console.log("Starting delete process for record:", fileRecord.id);
+      console.log("DataUpload - Starting delete process for record:", fileRecord.id);
       
-      // 1. Delete from Storage
+      // 1. Delete from Storage if URL exists
       if (fileRecord.downloadUrl) {
         try {
           const storageRef = ref(storage, fileRecord.downloadUrl);
           await deleteObject(storageRef);
-          console.log("File deleted from storage");
+          console.log("DataUpload - File deleted from storage");
         } catch (err) {
-          console.warn('Storage delete error (may not exist):', err);
+          console.warn('DataUpload - Storage delete error (may not exist):', err);
           // Continue with Firestore deletion even if Storage deletion fails
         }
       }
       
       // 2. Delete from Firestore
-      await deleteDoc(doc(db, 'fileUploads', fileRecord.id));
-      console.log("File record deleted from Firestore");
+      await deleteDoc(doc(db, 'upload_history', fileRecord.id));
+      console.log("DataUpload - File record deleted from Firestore");
       
       toast.success('File deleted successfully');
       fetchUploadHistory();
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('DataUpload - Delete error:', error);
       toast.error('Failed to delete file');
     } finally {
       setIsDeleting(false);
@@ -552,9 +575,9 @@ const DataUpload = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Date Uploaded</TableHead>
                     <TableHead>File Name</TableHead>
-                    <TableHead>Data Range</TableHead>
+                    <TableHead>Date Range</TableHead>
                     <TableHead>Rows</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
