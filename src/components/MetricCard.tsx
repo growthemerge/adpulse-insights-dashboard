@@ -21,7 +21,7 @@ export function MetricCard({
   colorClass,
 }: MetricCardProps) {
   return (
-    <Card className="dashboard-card animate-slide-in-bottom" style={{ animationDelay: '100ms' }}>
+    <Card className="p-4 shadow-sm transition-all duration-300 hover:shadow-md border-0">
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-muted-foreground">{title}</p>
@@ -31,17 +31,17 @@ export function MetricCard({
           <Icon className="h-5 w-5" />
         </div>
       </div>
-      <div className="flex items-center mt-2">
+      <div className="flex items-center mt-3">
         <div
           className={cn(
-            "flex items-center text-sm",
-            isPositive ? "text-brand-green" : "text-brand-red"
+            "flex items-center text-xs font-medium",
+            isPositive ? "text-green-600" : "text-red-600"
           )}
         >
           {isPositive ? (
-            <ArrowUpRight className="h-4 w-4 mr-1" />
+            <ArrowUpRight className="h-3 w-3 mr-1" />
           ) : (
-            <ArrowDownRight className="h-4 w-4 mr-1" />
+            <ArrowDownRight className="h-3 w-3 mr-1" />
           )}
           <span>{change}</span>
         </div>

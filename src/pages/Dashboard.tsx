@@ -6,7 +6,9 @@ import {
   CreditCard, 
   DollarSign, 
   ShoppingCart, 
-  Users as UsersIcon 
+  Users as UsersIcon,
+  Clock,
+  Percent
 } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { MetricCard } from '@/components/MetricCard';
@@ -18,6 +20,8 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { FileDown, Filter } from 'lucide-react';
 
 interface DashboardData {
   date: string;
@@ -131,7 +135,9 @@ const Dashboard = () => {
       averageRoas: 0,
       orders: 0,
       visitors: 0,
-      avgCpc: 0
+      avgCpc: 0,
+      sessionDuration: "0m 0s",
+      conversionRate: 0
     };
     
     const totalSpend = performanceData.reduce((sum, item) => sum + item.spend, 0);
@@ -147,6 +153,12 @@ const Dashboard = () => {
     // Calculate average CPC based on the data
     const totalClicks = performanceData.reduce((sum, item) => sum + (item.link_clicks || 0), 0);
     const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+
+    // Calculate conversion rate (orders/visitors)
+    const conversionRate = visitors > 0 ? (orders / visitors) * 100 : 0;
+    
+    // For the session duration, we'll simulate a value since it's not in our data
+    const sessionDuration = "4m 32s";
     
     return {
       totalSpend,
@@ -154,77 +166,35 @@ const Dashboard = () => {
       averageRoas,
       orders,
       visitors,
-      avgCpc
+      avgCpc,
+      sessionDuration,
+      conversionRate
     };
   };
 
-  const metrics = hasData ? (() => {
-    const calculated = calculateMetrics();
-    return [
-      {
-        title: "Total Spend",
-        value: `₹${calculated.totalSpend.toLocaleString()}`,
-        change: "+12.3%",
-        isPositive: false,
-        icon: CreditCard,
-        color: "bg-brand-orange/10 text-brand-orange",
-      },
-      {
-        title: "Total Revenue",
-        value: `₹${calculated.totalRevenue.toLocaleString()}`,
-        change: "+23.5%",
-        isPositive: true,
-        icon: DollarSign,
-        color: "bg-brand-green/10 text-brand-green",
-      },
-      {
-        title: "Orders",
-        value: calculated.orders.toLocaleString(),
-        change: "+18.2%",
-        isPositive: true,
-        icon: ShoppingCart,
-        color: "bg-brand-teal/10 text-brand-teal",
-      },
-      {
-        title: "Website Visitors",
-        value: calculated.visitors.toLocaleString(),
-        change: "+9.8%",
-        isPositive: true,
-        icon: UsersIcon,
-        color: "bg-brand-skyBlue/10 text-brand-skyBlue",
-      },
-      {
-        title: "ROAS",
-        value: `${calculated.averageRoas.toFixed(1)}x`,
-        change: "+11.2%",
-        isPositive: true,
-        icon: BarChart4,
-        color: "bg-brand-gold/10 text-brand-gold",
-      },
-      {
-        title: "Avg. CPC",
-        value: `₹${calculated.avgCpc.toFixed(2)}`,
-        change: "-5.2%",
-        isPositive: true,
-        icon: CreditCard,
-        color: "bg-brand-cyan/10 text-brand-cyan",
-      },
-    ];
-  })() : [];
-
   return (
     <div className="w-full space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <DateRangePicker 
-          date={dateRange} 
-          onDateChange={(newDateRange: DateRange) => setDateRange(newDateRange)} 
-        />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+        <div className="flex items-center gap-3">
+          <DateRangePicker 
+            date={dateRange} 
+            onDateChange={(newDateRange: DateRange) => setDateRange(newDateRange)} 
+          />
+          <Button variant="outline" size="sm" className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filters
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2">
+            <FileDown className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
             <Card key={i} className="p-6">
               <Skeleton className="h-4 w-24 mb-2" />
               <Skeleton className="h-8 w-20 mb-1" />
@@ -233,57 +203,41 @@ const Dashboard = () => {
           ))}
         </div>
       ) : hasData ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {(() => {
             const calculated = calculateMetrics();
             return [
-              {
-                title: "Total Spend",
-                value: `₹${calculated.totalSpend.toLocaleString()}`,
-                change: "+12.3%",
-                isPositive: false,
-                icon: CreditCard,
-                color: "bg-brand-orange/10 text-brand-orange",
-              },
               {
                 title: "Total Revenue",
                 value: `₹${calculated.totalRevenue.toLocaleString()}`,
                 change: "+23.5%",
                 isPositive: true,
                 icon: DollarSign,
-                color: "bg-brand-green/10 text-brand-green",
+                color: "bg-indigo-100 text-indigo-600",
               },
               {
-                title: "Orders",
-                value: calculated.orders.toLocaleString(),
-                change: "+18.2%",
-                isPositive: true,
-                icon: ShoppingCart,
-                color: "bg-brand-teal/10 text-brand-teal",
-              },
-              {
-                title: "Website Visitors",
+                title: "Active Users",
                 value: calculated.visitors.toLocaleString(),
                 change: "+9.8%",
                 isPositive: true,
                 icon: UsersIcon,
-                color: "bg-brand-skyBlue/10 text-brand-skyBlue",
+                color: "bg-amber-100 text-amber-600",
               },
               {
-                title: "ROAS",
-                value: `${calculated.averageRoas.toFixed(1)}x`,
+                title: "Conversion Rate",
+                value: `${calculated.conversionRate.toFixed(1)}%`,
                 change: "+11.2%",
                 isPositive: true,
-                icon: BarChart4,
-                color: "bg-brand-gold/10 text-brand-gold",
+                icon: Percent,
+                color: "bg-emerald-100 text-emerald-600",
               },
               {
-                title: "Avg. CPC",
-                value: `₹${calculated.avgCpc.toFixed(2)}`,
-                change: "-5.2%",
+                title: "Avg. Session Duration",
+                value: calculated.sessionDuration,
+                change: "+12%",
                 isPositive: true,
-                icon: CreditCard,
-                color: "bg-brand-cyan/10 text-brand-cyan",
+                icon: Clock,
+                color: "bg-blue-100 text-blue-600",
               },
             ].map((metric, index) => (
               <MetricCard
@@ -306,19 +260,60 @@ const Dashboard = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="chart-container">
-          <h2 className="text-lg font-semibold mb-4">Spend vs. Revenue</h2>
-          <PerformanceChart data={performanceData} isLoading={isLoading} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <Card className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
+          <div className="space-y-3">
+            {isLoading ? (
+              [...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div>
+                      <Skeleton className="h-4 w-24 mb-1" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              ))
+            ) : hasData ? (
+              performanceData
+                .filter(item => item.campaign_name)
+                .slice(0, 5)
+                .map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 hover:bg-muted/10 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                        ['bg-indigo-100', 'bg-amber-100', 'bg-emerald-100', 'bg-blue-100', 'bg-purple-100'][index % 5]
+                      }`}>
+                        <span className={`text-sm font-medium ${
+                          ['text-indigo-600', 'text-amber-600', 'text-emerald-600', 'text-blue-600', 'text-purple-600'][index % 5]
+                        }`}>
+                          {item.campaign_name?.substring(0, 1).toUpperCase() || 'C'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{item.campaign_name}</p>
+                        <p className="text-xs text-muted-foreground">{item.date}</p>
+                      </div>
+                    </div>
+                    <p className="font-semibold">₹{item.revenue.toLocaleString()}</p>
+                  </div>
+                ))
+            ) : (
+              <p className="text-center text-muted-foreground">No transaction data available</p>
+            )}
+          </div>
         </Card>
         
-        <Card className="chart-container">
-          <h2 className="text-lg font-semibold mb-4">ROAS Trend</h2>
-          <RoasChart data={performanceData} isLoading={isLoading} />
+        <Card className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Monthly Revenue</h2>
+          <PerformanceChart data={performanceData} isLoading={isLoading} />
         </Card>
       </div>
 
-      <Card className="chart-container">
+      <Card className="p-4 mt-6">
         <h2 className="text-lg font-semibold mb-4">Campaign Performance</h2>
         <CampaignPerformanceChart />
       </Card>
